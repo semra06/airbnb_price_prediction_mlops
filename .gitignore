@@ -1,44 +1,63 @@
-# === BINARIES / ARCHIVES ===
+# ==============================
+# BINARIES / ARCHIVES
+# ==============================
 *.zip
 ngrok*
 
-# === ENV ===
+# ==============================
+# ENV / SECRETS
+# ==============================
 .env
 .env.*
 !.env.example
+*.key
+*.pem
 
-# === MODELS / ARTIFACTS ===
+# ==============================
+# PYTHON
+# ==============================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ==============================
+# VIRTUAL ENVS
+# ==============================
+venv/
+.venv/
+env/
+uv-env/
+uv_env/
+
+# ==============================
+# ML ARTIFACTS (NEVER COMMIT)
+# ==============================
 backend/saved_models/
 *.joblib
 *.pkl
 *.json
+mlruns/
 
-# === PYTHON ===
-__pycache__/
-*.pyc
-
-# === VENV ===
-venv/
-.venv/
-uv-env/
-
-# === STREAMLIT ===
+# ==============================
+# FRONTEND
+# ==============================
+node_modules/
 .streamlit/
 
-# === DOCKER ===
+# ==============================
+# DOCKER / LOGS
+# ==============================
 *.log
 
-# === JENKINS ===
+# ==============================
+# JENKINS
+# ==============================
 jenkins_home/
 
-# === SECRETS ===
-*.key
-*.pem
-
-# === OS ===
+# ==============================
+# OS / IDE
+# ==============================
 .DS_Store
-
-# ML model artifacts
-backend/saved_models/
-*.joblib
-
+.idea/
+.vscode/
