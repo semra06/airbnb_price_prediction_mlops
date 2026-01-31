@@ -1,104 +1,116 @@
-import os
-import requests
-import streamlit as st
-from dotenv import load_dotenv
+pipeline {
+    agent any
 
-# Load env vars (local dev için; K8s'te env zaten gelir)
-load_dotenv()
+    environment {
+        APP_NAME     = "airbnb-mlops"
+        NAMESPACE    = "airbnb-mlops"
+        DOCKER_IMAGE = "air_bnb_price_prediction-api"
+        DOCKER_TAG   = "${BUILD_NUMBER}"
+    }
 
-# API URL (Kubernetes içi varsayılan)
-API_URL = os.getenv(
-    "API_URL",
-    "http://airbnb-api.airbnb-mlops.svc.cluster.local:8502"
-)
+    stages {
 
-# API Token
-API_TOKEN = os.getenv("API_TOKEN", "super-secret-token")
+        stage("Checkout") {
+            steps {
+                echo "📥 Cloning repository"
+                checkout scm
+            }
+        }
 
-st.set_page_config(page_title="Airbnb Price Prediction", layout="centered")
-st.title("🏙️ Airbnb NYC Price Prediction (MLOps Project)")
+        /*
+        =========================
+        MODEL TRAINING (PYTHON)
+        =========================
+        */
+        stage("Model Training") {
+            agent {
+                docker {
+                    image 'python:3.11-slim'
+                    args '-u root'
+                }
+            }
+            steps {
+                echo "🧠 Training ML model"
+                sh '''
+                    python --version
+                    pip install --upgrade pip
+                    pip install -r backend/requirements.txt
+                    python -m backend.src.train
+                '''
+            }
+        }
 
-# -------------------------
-# Inputs
-# -------------------------
-neighbourhood_group = st.selectbox(
-    "Neighbourhood Group",
-    ["Manhattan", "Brooklyn", "Queens", "Bronx", "Staten Island"]
-)
+        /*
+        =========================
+        BUILD DOCKER IMAGE
+        =========================
+        */
+        stage("Build API Docker Image") {
+            steps {
+                echo "🐳 Building API Docker image"
+                sh """
+                    docker build \
+                      -t ${DOCKER_IMAGE}:${DOCKER_TAG} \
+                      -f backend/Dockerfile .
+                """
+            }
+        }
 
-room_type = st.selectbox(
-    "Room Type",
-    ["Entire home/apt", "Private room", "Shared room"]
-)
+        stage("Tag Image as latest") {
+            steps {
+                echo "🏷️ Tagging image as latest"
+                sh """
+                    docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest
+                """
+            }
+        }
 
-minimum_nights = st.number_input("Minimum Nights", min_value=1, value=2)
-number_of_reviews = st.number_input("Number of Reviews", min_value=0, value=10)
-reviews_per_month = st.number_input("Reviews per Month", min_value=0.0, value=1.2)
-calculated_host_listings_count = st.number_input("Host Listings Count", min_value=0, value=1)
-availability_365 = st.number_input("Availability 365", min_value=0, max_value=365, value=120)
-latitude = st.number_input("Latitude", value=40.67)
-longitude = st.number_input("Longitude", value=-73.95)
+        /*
+        =========================
+        LOAD TO MINIKUBE
+        =========================
+        */
+        stage("Load Image into Minikube") {
+            steps {
+                echo "📦 Loading image into Minikube"
+                sh """
+                    minikube image load ${DOCKER_IMAGE}:${DOCKER_TAG}
+                    minikube image load ${DOCKER_IMAGE}:latest
+                """
+            }
+        }
 
-payload = {
-    "neighbourhood_group": neighbourhood_group,
-    "room_type": room_type,
-    "minimum_nights": float(minimum_nights),
-    "number_of_reviews": float(number_of_reviews),
-    "reviews_per_month": float(reviews_per_month),
-    "calculated_host_listings_count": float(calculated_host_listings_count),
-    "availability_365": float(availability_365),
-    "latitude": float(latitude),
-    "longitude": float(longitude),
+        /*
+        =========================
+        DEPLOY TO K8S
+        =========================
+        */
+        stage("Deploy to Kubernetes") {
+            steps {
+                echo "🚀 Deploying to Kubernetes"
+                sh """
+                    chmod +x deploy.sh
+                    ./deploy.sh
+                """
+            }
+        }
+
+        stage("Verify Deployment") {
+            steps {
+                echo "🔍 Verifying deployment"
+                sh """
+                    kubectl get pods -n ${NAMESPACE}
+                """
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ FULL MLOPS PIPELINE SUCCESSFUL"
+        }
+        failure {
+            echo "❌ PIPELINE FAILED"
+        }
+    }
 }
-
-# -------------------------
-# API headers (CRITICAL)
-# -------------------------
-headers = {
-    "X-Token": API_TOKEN
-}
-
-col1, col2 = st.columns(2)
-
-# -------------------------
-# Predict
-# -------------------------
-with col1:
-    if st.button("Predict"):
-        try:
-            r = requests.post(
-                f"{API_URL}/predict/",
-                headers=headers,
-                json=payload,
-                timeout=10,
-            )
-
-            if r.status_code != 200:
-                st.error(f"API error: {r.status_code} - {r.text}")
-            else:
-                st.success(f"Predicted price: ${r.json()['prediction']:.2f}")
-
-        except Exception as e:
-            st.error(str(e))
-
-# -------------------------
-# Drift Check
-# -------------------------
-with col2:
-    if st.button("Run Drift Check (sample batch)"):
-        batch = [payload] * 200
-        try:
-            r = requests.post(
-                f"{API_URL}/drift/",
-                headers=headers,
-                json=batch,
-                timeout=20,
-            )
-
-            if r.status_code != 200:
-                st.error(f"API error: {r.status_code} - {r.text}")
-            else:
-                st.json(r.json())
-
-        except Exception as e:
-            st.error(str(e))
