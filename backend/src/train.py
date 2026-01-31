@@ -23,6 +23,9 @@ from backend.src.preprocess import (
 
 
 def train():
+    # =========================
+    # LOAD & PREPROCESS DATA
+    # =========================
     df = clean_airbnb(load_csv(settings.DATA_PATH))
 
     X = df[NUM_COLS + CAT_COLS]
@@ -36,6 +39,7 @@ def train():
         ("imputer", SimpleImputer(strategy="median")),
         ("scaler", StandardScaler())
     ])
+
     cat_pipe = Pipeline([
         ("imputer", SimpleImputer(strategy="most_frequent")),
         ("ohe", OneHotEncoder(handle_unknown="ignore"))
@@ -52,9 +56,16 @@ def train():
         n_jobs=-1
     )
 
-    pipe = Pipeline([("pre", pre), ("model", model)])
+    pipe = Pipeline([
+        ("pre", pre),
+        ("model", model)
+    ])
+
     pipe.fit(X_train, y_train)
 
+    # =========================
+    # EVALUATION
+    # =========================
     preds = pipe.predict(X_test)
     rmse = float(np.sqrt(mean_squared_error(y_test, preds)))
     mae = float(mean_absolute_error(y_test, preds))
@@ -76,44 +87,58 @@ def train():
 
     print("✅ Training complete")
     print({"rmse": rmse, "mae": mae})
-    print(f"Model: {settings.MODEL_PATH}")
-    print(f"Baseline: {settings.BASELINE_PATH}")
+    print(f"Model saved at: {settings.MODEL_PATH}")
 
     # =========================
-    # OPTIONAL: UPLOAD TO MINIO
+    # UPLOAD TO MINIO
     # =========================
     try:
         from minio import Minio
 
-        minio_endpoint = os.getenv("MINIO_ENDPOINT")
+        raw_endpoint = os.getenv("MINIO_ENDPOINT", "")
+        minio_endpoint = (
+            raw_endpoint
+            .replace("http://", "")
+            .replace("https://", "")
+        )
+
         minio_access_key = os.getenv("MINIO_ACCESS_KEY")
         minio_secret_key = os.getenv("MINIO_SECRET_KEY")
         minio_bucket = os.getenv("MINIO_BUCKET", "ml-models")
+        build_no = os.getenv("BUILD_NUMBER", "local")
 
-        if minio_endpoint and minio_access_key and minio_secret_key:
-            client = Minio(
-                minio_endpoint,
-                access_key=minio_access_key,
-                secret_key=minio_secret_key,
-                secure=False,
-            )
+        if not all([minio_endpoint, minio_access_key, minio_secret_key]):
+            raise RuntimeError("MinIO environment variables are missing")
 
-            if not client.bucket_exists(minio_bucket):
-                client.make_bucket(minio_bucket)
+        client = Minio(
+            minio_endpoint,
+            access_key=minio_access_key,
+            secret_key=minio_secret_key,
+            secure=False,
+        )
 
-            client.fput_object(
-                minio_bucket,
-                "airbnb/model.joblib",
-                settings.MODEL_PATH,
-            )
+        if not client.bucket_exists(minio_bucket):
+            client.make_bucket(minio_bucket)
 
-            print("🚀 Model uploaded to MinIO")
+        # Upload model
+        client.fput_object(
+            minio_bucket,
+            f"airbnb/model_v{build_no}.joblib",
+            settings.MODEL_PATH,
+        )
 
-        else:
-            print("ℹ️ MinIO env vars not set, skipping upload")
+        # Upload metrics
+        client.fput_object(
+            minio_bucket,
+            f"airbnb/metrics_v{build_no}.json",
+            metrics_path,
+        )
+
+        print(f"🚀 Model & metrics uploaded to MinIO (build={build_no})")
 
     except Exception as e:
-        print(f"⚠️ MinIO upload skipped: {e}")
+        print("⚠️ MinIO upload failed")
+        print(str(e))
 
 
 if __name__ == "__main__":

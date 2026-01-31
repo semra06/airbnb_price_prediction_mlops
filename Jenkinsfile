@@ -5,6 +5,11 @@ pipeline {
         TRAIN_IMAGE = "airbnb-train"
         API_IMAGE   = "air_bnb_price_prediction-api"
         TAG         = "${BUILD_NUMBER}"
+
+        // MinIO (Jenkins Credentials'tan gelecek)
+        MINIO_ENDPOINT   = "http://airbnb.local:9000"
+        MINIO_ACCESS_KEY = credentials('minio-access-key')
+        MINIO_SECRET_KEY = credentials('minio-secret-key')
     }
 
     stages {
@@ -12,17 +17,27 @@ pipeline {
         stage("Build Training Image") {
             steps {
                 sh """
-                    docker build \
-                      -t ${TRAIN_IMAGE}:${TAG} \
-                      -f backend/Dockerfile.train .
+                docker build \
+                  -t ${TRAIN_IMAGE}:${TAG} \
+                  -f backend/Dockerfile.train .
                 """
             }
         }
 
-        stage("Run Model Training") {
+        stage("Run Model Training & Upload to MinIO") {
             steps {
                 sh """
-                    docker run --rm ${TRAIN_IMAGE}:${TAG}
+                docker run --rm \
+                  -e MINIO_ENDPOINT \
+                  -e MINIO_ACCESS_KEY \
+                  -e MINIO_SECRET_KEY \
+                  -e BUILD_NUMBER=${TAG} \
+                  ${TRAIN_IMAGE}:${TAG} \
+                  sh -c "
+                    mc alias set minio \$MINIO_ENDPOINT \
+                      \$MINIO_ACCESS_KEY \$MINIO_SECRET_KEY &&
+                    python -m backend.src.train
+                  "
                 """
             }
         }
@@ -30,9 +45,9 @@ pipeline {
         stage("Build API Image") {
             steps {
                 sh """
-                    docker build \
-                      -t ${API_IMAGE}:${TAG} \
-                      -f backend/Dockerfile .
+                docker build \
+                  -t ${API_IMAGE}:${TAG} \
+                  -f backend/Dockerfile .
                 """
             }
         }
@@ -40,7 +55,7 @@ pipeline {
 
     post {
         success {
-            echo "✅ TRAINING + API IMAGE BUILD SUCCESSFUL"
+            echo "✅ TRAINING + MODEL UPLOAD + API IMAGE BUILD SUCCESSFUL"
         }
         failure {
             echo "❌ PIPELINE FAILED"
