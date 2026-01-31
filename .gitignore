@@ -1,30 +1,39 @@
-# binaries / archives
+# === BINARIES / ARCHIVES ===
 *.zip
 ngrok*
 
-# env
+# === ENV ===
 .env
 .env.*
 !.env.example
 
-# python
-__pycache__/
-*.pyc
-.venv/
-uv-env/
-
-# model artifacts
+# === MODELS / ARTIFACTS ===
 backend/saved_models/
 *.joblib
 *.pkl
 *.json
 
-# docker
+# === PYTHON ===
+__pycache__/
+*.pyc
+
+# === VENV ===
+venv/
+.venv/
+uv-env/
+
+# === STREAMLIT ===
+.streamlit/
+
+# === DOCKER ===
 *.log
 
-# jenkins
+# === JENKINS ===
 jenkins_home/
 
-# secrets
+# === SECRETS ===
 *.key
 *.pem
+
+# === OS ===
+.DS_Store
