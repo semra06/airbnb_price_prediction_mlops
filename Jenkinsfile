@@ -8,7 +8,6 @@ pipeline {
 
         TAG = "${BUILD_NUMBER}"
 
-        // MinIO credentials (Jenkins Credentials)
         MINIO_ACCESS_KEY = credentials('minio-access-key')
         MINIO_SECRET_KEY = credentials('minio-secret-key')
     }
@@ -17,26 +16,26 @@ pipeline {
 
         stage("Docker Cleanup") {
             steps {
-                sh """
+                sh '''
                 echo "🧹 Cleaning unused Docker resources..."
                 docker system prune -af --volumes || true
-                """
+                '''
             }
         }
 
         stage("Build Training Image") {
             steps {
-                sh """
+                sh '''
                 docker build \
                   -t ${TRAIN_IMAGE}:${TAG} \
                   -f backend/Dockerfile.train .
-                """
+                '''
             }
         }
 
         stage("Run Training & Upload Model") {
             steps {
-                sh """
+                sh '''
                 docker run --rm \
                   --network air_bnb_price_prediction_default \
                   -e MINIO_ENDPOINT=http://minio:9000 \
@@ -45,23 +44,33 @@ pipeline {
                   -e BUILD_NUMBER=${TAG} \
                   ${TRAIN_IMAGE}:${TAG} \
                   python -m backend.src.train
-                """
+                '''
             }
         }
 
         stage("Build API Image") {
             steps {
-                sh """
+                sh '''
                 docker build \
                   -t ${API_IMAGE}:${TAG} \
                   -f backend/Dockerfile .
-                """
+                '''
+            }
+        }
+
+        stage("Build Streamlit UI Image") {
+            steps {
+                sh '''
+                docker build \
+                  -t ${UI_IMAGE}:${TAG} \
+                  -f frontend/Dockerfile .
+                '''
             }
         }
 
         stage("Restart API (Load New Model)") {
             steps {
-                sh """
+                sh '''
                 docker stop airbnb_api || true
                 docker rm airbnb_api || true
 
@@ -73,13 +82,13 @@ pipeline {
                   -e MINIO_SECRET_KEY \
                   -p 8502:8502 \
                   ${API_IMAGE}:${TAG}
-                """
+                '''
             }
         }
 
         stage("Restart Streamlit UI") {
             steps {
-                sh """
+                sh '''
                 docker stop airbnb_ui || true
                 docker rm airbnb_ui || true
 
@@ -87,8 +96,8 @@ pipeline {
                   --name airbnb_ui \
                   --network air_bnb_price_prediction_default \
                   -p 8501:8501 \
-                  ${UI_IMAGE}:latest
-                """
+                  ${UI_IMAGE}:${TAG}
+                '''
             }
         }
     }
