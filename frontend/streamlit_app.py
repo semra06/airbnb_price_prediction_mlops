@@ -9,7 +9,7 @@ API_URL = os.getenv("API_URL", "http://airbnb_api:8502")
 
 API_TOKEN = os.getenv("API_TOKEN", "CHANGE_ME")
 
-st.title("🏙️ Airbnb NYC Price Prediction (MLOps Demo)")
+st.title("🏙️ Airbnb NYC Price Prediction (MLOps)")
 
 neighbourhood_group = st.selectbox("Neighbourhood Group", ["Manhattan","Brooklyn","Queens","Bronx","Staten Island"])
 room_type = st.selectbox("Room Type", ["Entire home/apt","Private room","Shared room"])
