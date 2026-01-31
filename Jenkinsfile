@@ -7,7 +7,7 @@ pipeline {
         TAG         = "${BUILD_NUMBER}"
 
         // MinIO (Jenkins Credentials'tan gelecek)
-        MINIO_ENDPOINT   = "http://airbnb.local:9000"
+        MINIO_ENDPOINT = "http://minio:9000"
         MINIO_ACCESS_KEY = credentials('minio-access-key')
         MINIO_SECRET_KEY = credentials('minio-secret-key')
     }
