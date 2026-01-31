@@ -2,6 +2,7 @@ import os
 import json
 import joblib
 import numpy as np
+
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
@@ -27,7 +28,9 @@ def train():
     X = df[NUM_COLS + CAT_COLS]
     y = df["price"].astype(float)
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
 
     num_pipe = Pipeline([
         ("imputer", SimpleImputer(strategy="median")),
@@ -56,15 +59,18 @@ def train():
     rmse = float(np.sqrt(mean_squared_error(y_test, preds)))
     mae = float(mean_absolute_error(y_test, preds))
 
-    # Save model + metrics
+    # =========================
+    # SAVE LOCAL ARTIFACTS
+    # =========================
     os.makedirs(os.path.dirname(settings.MODEL_PATH), exist_ok=True)
     joblib.dump(pipe, settings.MODEL_PATH)
 
-    metrics_path = os.path.join(os.path.dirname(settings.MODEL_PATH), "metrics.json")
+    metrics_path = os.path.join(
+        os.path.dirname(settings.MODEL_PATH), "metrics.json"
+    )
     with open(metrics_path, "w", encoding="utf-8") as f:
         json.dump({"rmse": rmse, "mae": mae}, f, indent=2)
 
-    # Save baseline for drift
     baseline = build_baseline(df)
     save_json(baseline, settings.BASELINE_PATH)
 
@@ -72,6 +78,43 @@ def train():
     print({"rmse": rmse, "mae": mae})
     print(f"Model: {settings.MODEL_PATH}")
     print(f"Baseline: {settings.BASELINE_PATH}")
+
+    # =========================
+    # OPTIONAL: UPLOAD TO MINIO
+    # =========================
+    try:
+        from minio import Minio
+
+        minio_endpoint = os.getenv("MINIO_ENDPOINT")
+        minio_access_key = os.getenv("MINIO_ACCESS_KEY")
+        minio_secret_key = os.getenv("MINIO_SECRET_KEY")
+        minio_bucket = os.getenv("MINIO_BUCKET", "ml-models")
+
+        if minio_endpoint and minio_access_key and minio_secret_key:
+            client = Minio(
+                minio_endpoint,
+                access_key=minio_access_key,
+                secret_key=minio_secret_key,
+                secure=False,
+            )
+
+            if not client.bucket_exists(minio_bucket):
+                client.make_bucket(minio_bucket)
+
+            client.fput_object(
+                minio_bucket,
+                "airbnb/model.joblib",
+                settings.MODEL_PATH,
+            )
+
+            print("🚀 Model uploaded to MinIO")
+
+        else:
+            print("ℹ️ MinIO env vars not set, skipping upload")
+
+    except Exception as e:
+        print(f"⚠️ MinIO upload skipped: {e}")
+
 
 if __name__ == "__main__":
     train()
