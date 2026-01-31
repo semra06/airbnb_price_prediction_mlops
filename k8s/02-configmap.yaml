@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airbnb-config
+  namespace: airbnb-mlops
+data:
+  APP_HOST: "0.0.0.0"
+  APP_PORT: "8502"
+  MODEL_PATH: "backend/saved_models/model.joblib"
+  BASELINE_PATH: "backend/saved_models/baseline.json"
+  DATA_PATH: "backend/data/AB_NYC_2019.csv"
+  DB_URL: "postgresql://train:Ankara06@airbnb-db:5432/projectdb"

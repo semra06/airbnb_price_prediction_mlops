@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airbnb-db
+  namespace: airbnb-mlops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airbnb-db
+  template:
+    metadata:
+      labels:
+        app: airbnb-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16
+          env:
+            - name: POSTGRES_USER
+              value: "train"
+            - name: POSTGRES_PASSWORD
+              value: "Ankara06"
+            - name: POSTGRES_DB
+              value: "projectdb"
+          ports:
+            - containerPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airbnb-db
+  namespace: airbnb-mlops
+spec:
+  selector:
+    app: airbnb-db
+  ports:
+    - port: 5432
+      targetPort: 5432

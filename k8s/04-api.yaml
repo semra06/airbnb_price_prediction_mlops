@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airbnb-api
+  namespace: airbnb-mlops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airbnb-api
+  template:
+    metadata:
+      labels:
+        app: airbnb-api
+    spec:
+      containers:
+        - name: api
+          image: air_bnb_price_prediction-api:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: airbnb-config
+            - secretRef:
+                name: airbnb-secrets
+          ports:
+            - containerPort: 8502
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airbnb-api
+  namespace: airbnb-mlops
+spec:
+  selector:
+    app: airbnb-api
+  ports:
+    - port: 8502
+      targetPort: 8502

@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airbnb-ui
+  namespace: airbnb-mlops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airbnb-ui
+  template:
+    metadata:
+      labels:
+        app: airbnb-ui
+    spec:
+      containers:
+        - name: ui
+          image: airbnb-ui:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8501
+          env:
+            - name: API_URL
+              value: "http://airbnb-api:8502"

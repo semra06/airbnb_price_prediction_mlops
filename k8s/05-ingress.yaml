@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: airbnb-ingress
+  namespace: airbnb-mlops
+spec:
+  rules:
+    - host: airbnb.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: airbnb-ui
+                port:
+                  number: 80
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: airbnb-api
+                port:
+                  number: 8502

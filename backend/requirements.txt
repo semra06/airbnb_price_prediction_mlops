@@ -1,0 +1,12 @@
+pandas
+numpy
+scikit-learn==1.3.2
+joblib
+sqlmodel
+psycopg2-binary
+fastapi
+uvicorn
+python-dotenv
+scipy
+requests
+pytest
