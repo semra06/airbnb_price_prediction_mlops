@@ -31,13 +31,20 @@ uv-env/
 uv_env/
 
 # ==============================
-# ML ARTIFACTS (NEVER COMMIT)
+# ML ARTIFACTS
 # ==============================
-backend/saved_models/
-*.joblib
-*.pkl
-*.json
+
+# ignore everything in saved_models
+backend/saved_models/*
+
+# BUT allow committed model
+!backend/saved_models/model.joblib
+
+# still ignore others
+backend/saved_models/*.json
+backend/saved_models/*.pkl
 mlruns/
+
 
 # ==============================
 # FRONTEND

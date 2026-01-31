@@ -2,12 +2,20 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install deps
+# System deps (opsiyonel ama güvenli)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+ && rm -rf /var/lib/apt/lists/*
+
+# Install Python deps
 COPY backend/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# Copy code
+# Copy backend code
 COPY backend /app/backend
+
+# Ensure model output dir exists
+RUN mkdir -p /app/backend/saved_models
 
 # Run training
 CMD ["python", "-m", "backend.src.train"]
