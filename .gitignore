@@ -37,3 +37,8 @@ jenkins_home/
 
 # === OS ===
 .DS_Store
+
+# ML model artifacts
+backend/saved_models/
+*.joblib
+
