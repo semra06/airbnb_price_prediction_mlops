@@ -23,21 +23,20 @@ pipeline {
         =========================
         */
         stage("Model Training") {
-            agent {
-                docker {
-                    image 'python:3.12-slim'
-                    args '-u root -v $WORKSPACE:/app'
-                    reuseNode true
-                }
-            }
             steps {
-                echo "🧠 Training ML model"
+                echo "🧠 Training ML model (Docker run)"
+
                 sh '''
-                    cd /app
-                    python --version
-                    pip install --upgrade pip
-                    pip install -r backend/requirements.txt
-                    python -m backend.src.train
+                    docker run --rm \
+                      -v "$WORKSPACE:/app" \
+                      python:3.12-slim \
+                      bash -c "
+                        cd /app &&
+                        python --version &&
+                        pip install --upgrade pip &&
+                        pip install -r backend/requirements.txt &&
+                        python -m backend.src.train
+                      "
                 '''
             }
         }
@@ -69,7 +68,7 @@ pipeline {
 
         /*
         =========================
-        LOAD TO MINIKUBE
+        LOAD IMAGE INTO MINIKUBE
         =========================
         */
         stage("Load Image into Minikube") {
@@ -84,7 +83,7 @@ pipeline {
 
         /*
         =========================
-        DEPLOY TO K8S
+        DEPLOY TO KUBERNETES
         =========================
         */
         stage("Deploy to Kubernetes") {
