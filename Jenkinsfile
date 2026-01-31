@@ -63,7 +63,7 @@ pipeline {
                 sh '''
                 docker build \
                   -t ${UI_IMAGE}:${TAG} \
-                  -f frontend/Dockerfile .
+                  -f frontend/Dockerfile frontend
                 '''
             }
         }

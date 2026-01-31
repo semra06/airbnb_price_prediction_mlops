@@ -1,38 +1,19 @@
 FROM python:3.12-slim
-
 WORKDIR /app
 
-# Better logging & pip behavior
 ENV PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# --------------------------------------------------
-# System dependencies + MinIO client (mc)
-# --------------------------------------------------
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    curl \
+    build-essential curl \
  && curl -fsSL https://dl.min.io/client/mc/release/linux-amd64/mc \
     -o /usr/local/bin/mc \
  && chmod +x /usr/local/bin/mc \
  && rm -rf /var/lib/apt/lists/*
 
-# --------------------------------------------------
-# Python dependencies
-# --------------------------------------------------
 COPY backend/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# --------------------------------------------------
-# Application code
-# --------------------------------------------------
 COPY backend /app/backend
-
-# Runtime-only directory (optional, local debug için)
 RUN mkdir -p /app/backend/saved_models
 
-# --------------------------------------------------
-# Default command
-# (mc alias Jenkins tarafından set edilecek)
-# --------------------------------------------------
-CMD ["python", "-m", "backend.src.train"]

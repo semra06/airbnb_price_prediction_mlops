@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import joblib
 import numpy as np
@@ -22,77 +23,77 @@ from backend.src.preprocess import (
 )
 
 
-def train():
-    # =========================
-    # LOAD & PREPROCESS DATA
-    # =========================
-    df = clean_airbnb(load_csv(settings.DATA_PATH))
-
-    X = df[NUM_COLS + CAT_COLS]
-    y = df["price"].astype(float)
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
-
-    num_pipe = Pipeline([
-        ("imputer", SimpleImputer(strategy="median")),
-        ("scaler", StandardScaler())
-    ])
-
-    cat_pipe = Pipeline([
-        ("imputer", SimpleImputer(strategy="most_frequent")),
-        ("ohe", OneHotEncoder(handle_unknown="ignore"))
-    ])
-
-    pre = ColumnTransformer([
-        ("num", num_pipe, NUM_COLS),
-        ("cat", cat_pipe, CAT_COLS),
-    ])
-
-    model = RandomForestRegressor(
-        n_estimators=300,
-        random_state=42,
-        n_jobs=-1
-    )
-
-    pipe = Pipeline([
-        ("pre", pre),
-        ("model", model)
-    ])
-
-    pipe.fit(X_train, y_train)
-
-    # =========================
-    # EVALUATION
-    # =========================
-    preds = pipe.predict(X_test)
-    rmse = float(np.sqrt(mean_squared_error(y_test, preds)))
-    mae = float(mean_absolute_error(y_test, preds))
-
-    # =========================
-    # SAVE LOCAL ARTIFACTS
-    # =========================
-    os.makedirs(os.path.dirname(settings.MODEL_PATH), exist_ok=True)
-    joblib.dump(pipe, settings.MODEL_PATH)
-
-    metrics_path = os.path.join(
-        os.path.dirname(settings.MODEL_PATH), "metrics.json"
-    )
-    with open(metrics_path, "w", encoding="utf-8") as f:
-        json.dump({"rmse": rmse, "mae": mae}, f, indent=2)
-
-    baseline = build_baseline(df)
-    save_json(baseline, settings.BASELINE_PATH)
-
-    print("✅ Training complete")
-    print({"rmse": rmse, "mae": mae})
-    print(f"Model saved at: {settings.MODEL_PATH}")
-
-    # =========================
-    # UPLOAD TO MINIO
-    # =========================
+def main():
     try:
+        # =========================
+        # LOAD & PREPROCESS DATA
+        # =========================
+        df = clean_airbnb(load_csv(settings.DATA_PATH))
+
+        X = df[NUM_COLS + CAT_COLS]
+        y = df["price"].astype(float)
+
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
+
+        num_pipe = Pipeline([
+            ("imputer", SimpleImputer(strategy="median")),
+            ("scaler", StandardScaler())
+        ])
+
+        cat_pipe = Pipeline([
+            ("imputer", SimpleImputer(strategy="most_frequent")),
+            ("ohe", OneHotEncoder(handle_unknown="ignore"))
+        ])
+
+        pre = ColumnTransformer([
+            ("num", num_pipe, NUM_COLS),
+            ("cat", cat_pipe, CAT_COLS),
+        ])
+
+        model = RandomForestRegressor(
+            n_estimators=300,
+            random_state=42,
+            n_jobs=-1
+        )
+
+        pipe = Pipeline([
+            ("pre", pre),
+            ("model", model)
+        ])
+
+        pipe.fit(X_train, y_train)
+
+        # =========================
+        # EVALUATION
+        # =========================
+        preds = pipe.predict(X_test)
+        rmse = float(np.sqrt(mean_squared_error(y_test, preds)))
+        mae = float(mean_absolute_error(y_test, preds))
+
+        # =========================
+        # SAVE LOCAL ARTIFACTS
+        # =========================
+        os.makedirs(os.path.dirname(settings.MODEL_PATH), exist_ok=True)
+        joblib.dump(pipe, settings.MODEL_PATH)
+
+        metrics_path = os.path.join(
+            os.path.dirname(settings.MODEL_PATH), "metrics.json"
+        )
+        with open(metrics_path, "w", encoding="utf-8") as f:
+            json.dump({"rmse": rmse, "mae": mae}, f, indent=2)
+
+        baseline = build_baseline(df)
+        save_json(baseline, settings.BASELINE_PATH)
+
+        print("✅ Training completed")
+        print({"rmse": rmse, "mae": mae})
+        print(f"📦 Model saved at: {settings.MODEL_PATH}")
+
+        # =========================
+        # UPLOAD TO MINIO
+        # =========================
         from minio import Minio
 
         raw_endpoint = os.getenv("MINIO_ENDPOINT", "")
@@ -120,14 +121,12 @@ def train():
         if not client.bucket_exists(minio_bucket):
             client.make_bucket(minio_bucket)
 
-        # Upload model
         client.fput_object(
             minio_bucket,
             f"airbnb/model_v{build_no}.joblib",
             settings.MODEL_PATH,
         )
 
-        # Upload metrics
         client.fput_object(
             minio_bucket,
             f"airbnb/metrics_v{build_no}.json",
@@ -136,10 +135,16 @@ def train():
 
         print(f"🚀 Model & metrics uploaded to MinIO (build={build_no})")
 
+        # =========================
+        # CLEAN EXIT
+        # =========================
+        sys.exit(0)
+
     except Exception as e:
-        print("⚠️ MinIO upload failed")
+        print("❌ TRAINING FAILED")
         print(str(e))
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    train()
+    main()
