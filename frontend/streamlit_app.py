@@ -5,7 +5,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-API_URL = os.getenv("API_URL", "http://localhost:8502")
+API_URL = os.getenv("API_URL", "http://airbnb_api:8502")
+
 API_TOKEN = os.getenv("API_TOKEN", "CHANGE_ME")
 
 st.title("🏙️ Airbnb NYC Price Prediction (MLOps Demo)")
