@@ -10,13 +10,6 @@ pipeline {
 
     stages {
 
-        stage("Checkout") {
-            steps {
-                echo "📥 Cloning repository"
-                checkout scm
-            }
-        }
-
         /*
         =========================
         MODEL TRAINING (PYTHON)
@@ -27,14 +20,26 @@ pipeline {
                 echo "🧠 Training ML model (Docker run)"
 
                 sh '''
+                    echo "=== JENKINS WORKSPACE ==="
+                    pwd
+                    ls -la
+
                     docker run --rm \
                       -v "$WORKSPACE:/app" \
+                      -w /app \
                       python:3.12-slim \
                       bash -c "
-                        cd /app &&
-                        python --version &&
-                        pip install --upgrade pip &&
-                        pip install -r backend/requirements.txt &&
+                        set -e
+                        echo '=== INSIDE CONTAINER ==='
+                        pwd
+                        ls -la
+                        echo '=== BACKEND DIR ==='
+                        ls -la backend
+                        echo '=== REQUIREMENTS FILE ==='
+                        ls -la backend/requirements.txt
+                        python --version
+                        pip install --upgrade pip
+                        pip install -r backend/requirements.txt
                         python -m backend.src.train
                       "
                 '''
@@ -62,21 +67,6 @@ pipeline {
                 echo "🏷️ Tagging image as latest"
                 sh """
                     docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest
-                """
-            }
-        }
-
-        /*
-        =========================
-        LOAD IMAGE INTO MINIKUBE
-        =========================
-        */
-        stage("Load Image into Minikube") {
-            steps {
-                echo "📦 Loading image into Minikube"
-                sh """
-                    minikube image load ${DOCKER_IMAGE}:${DOCKER_TAG}
-                    minikube image load ${DOCKER_IMAGE}:latest
                 """
             }
         }
