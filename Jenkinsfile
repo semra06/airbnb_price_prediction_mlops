@@ -8,12 +8,21 @@ pipeline {
 
         TAG = "${BUILD_NUMBER}"
 
-        // MinIO credentials
+        // MinIO credentials (Jenkins Credentials)
         MINIO_ACCESS_KEY = credentials('minio-access-key')
         MINIO_SECRET_KEY = credentials('minio-secret-key')
     }
 
     stages {
+
+        stage("Docker Cleanup") {
+            steps {
+                sh """
+                echo "🧹 Cleaning unused Docker resources..."
+                docker system prune -af --volumes || true
+                """
+            }
+        }
 
         stage("Build Training Image") {
             steps {
