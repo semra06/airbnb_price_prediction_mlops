@@ -43,7 +43,8 @@ pipeline {
         stage("Deploy Services with Docker Compose") {
             steps {
                 sh '''
-                docker compose up -d --build
+                docker-compose up -d --build
+
                 '''
             }
         }
