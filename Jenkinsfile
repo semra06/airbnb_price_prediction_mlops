@@ -34,7 +34,7 @@ pipeline {
                         cd /app &&
                         python --version &&
                         pip install --upgrade pip &&
-                        pip install -r requirements.txt &&
+                        pip install -r backend/requirements.txt &&
                         python -m backend.src.train
                       "
                 '''
